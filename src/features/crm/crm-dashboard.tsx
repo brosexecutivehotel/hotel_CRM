@@ -5,6 +5,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
 import { HotelLogo } from "@/components/brand/hotel-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { guestProfiles, type GuestSegment } from "./crm-data";
 import styles from "./crm-dashboard.module.css";
 
@@ -52,6 +53,7 @@ export default function CrmDashboard() {
             <HotelLogo size={32} />
           </Link>
           <div className={styles.breadcrumb}>Customer relationship <span>/</span> <strong>Guest CRM</strong></div>
+          <ThemeToggle />
           <UserButton />
         </header>
 

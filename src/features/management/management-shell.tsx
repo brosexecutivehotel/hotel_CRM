@@ -5,6 +5,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { HotelLogo } from "@/components/brand/hotel-logo";
 import { Icon } from "@/components/ui/icon";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { managementNavigation as navigation } from "./management-data";
 
 type ManagementShellProps = {
@@ -82,6 +83,7 @@ export function ManagementShell({ activeNav, topbarActions, children, dateLabel,
           <div className="breadcrumb"><span>Workspace</span><Icon name="chevron" size={14} /><strong>{activeNav}</strong></div>
           <div className="topbar-actions">
             {topbarActions}
+            <ThemeToggle />
             <span className="icon-button notification-button" aria-label="Notifications">
               <Icon name="bell" size={18} /><span className="notification-dot" />
             </span>

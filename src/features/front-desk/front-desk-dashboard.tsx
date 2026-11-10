@@ -5,6 +5,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
 import { HotelLogo } from "@/components/brand/hotel-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { frontDeskArrivals, frontDeskRooms } from "./front-desk-data";
 import styles from "./front-desk-dashboard.module.css";
 
@@ -38,6 +39,7 @@ export default function FrontDeskDashboard() {
         </Link>
         <span className={styles.workspaceLabel}>Front desk workspace</span>
         <div className={styles.headerRight}>
+          <ThemeToggle />
           <span className={styles.localTime}><Icon name="clock" size={15} /> 10:42 AM <small>EAT</small></span>
           <UserButton />
         </div>
