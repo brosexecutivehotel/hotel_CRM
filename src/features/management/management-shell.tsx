@@ -11,9 +11,11 @@ type ManagementShellProps = {
   activeNav: string;
   topbarActions?: ReactNode;
   children: ReactNode;
+  dateLabel?: string;
+  timeLabel?: string;
 };
 
-export function ManagementShell({ activeNav, topbarActions, children }: ManagementShellProps) {
+export function ManagementShell({ activeNav, topbarActions, children, dateLabel, timeLabel }: ManagementShellProps) {
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -84,7 +86,7 @@ export function ManagementShell({ activeNav, topbarActions, children }: Manageme
               <Icon name="bell" size={18} /><span className="notification-dot" />
             </span>
             <span className="topbar-divider" />
-            <div className="date-display"><span>Friday, 31 October 2026</span><small>Hotel local time · EAT</small></div>
+            <div className="date-display"><span>{dateLabel ?? "—"}</span><small>{timeLabel ?? "Hotel local time · EAT"}</small></div>
           </div>
         </header>
 
