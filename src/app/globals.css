@@ -366,3 +366,20 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Room inventory input module */
+.room-form { display: grid; gap: 12px; margin-top: 15px; }
+.room-form-field { display: grid; gap: 5px; }
+.room-form-field label { color: #657185; font-size: 10px; font-weight: 600; }
+.room-form-field input, .room-form-field select { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 12px; }
+.room-form-field input[aria-invalid="true"], .room-form-field select[aria-invalid="true"] { border-color: #d7796c; }
+.room-form-field input:focus-visible, .room-form-field select:focus-visible { outline: 3px solid var(--brand-gold); outline-offset: 2px; }
+.room-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-error { margin: 0; color: #b4432f; font-size: 10px; }
+.form-success { margin: 0; padding: 9px 11px; border: 1px solid #cfe8dc; border-radius: 7px; background: #eaf5ef; color: #2f7a5b; font-size: 11px; }
+.room-form-submit { height: 38px; border: 0; border-radius: 7px; background: var(--brand-black); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.room-form-submit:hover { background: #2c2c2c; }
+.room-form-submit:disabled { cursor: default; opacity: .65; }
+.room-form-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.status-pill--alert { background: #fdecea; color: #b4432f; }
+.status-pill--alert i { background: #d7796c; }

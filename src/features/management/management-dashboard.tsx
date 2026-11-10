@@ -1,20 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
-import { HotelLogo } from "@/components/brand/hotel-logo";
 import { Icon } from "@/components/ui/icon";
+import { ManagementShell } from "./management-shell";
 import {
   activities,
   arrivals,
   chartSets,
-  managementNavigation as navigation,
   type ChartRange,
 } from "./management-data";
 
-export default function DashboardPage() {
-  const activeNav = "Overview";
+export default function ManagementDashboard() {
   const [chartRange, setChartRange] = useState<ChartRange>("Week");
   const [search, setSearch] = useState("");
 
@@ -29,89 +25,21 @@ export default function DashboardPage() {
   const chart = chartSets[chartRange];
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <Link className="brand" href="/management" aria-label="Bros Executive Hotel home">
-          <HotelLogo className="brand-logo" size={42} />
-          <span className="brand-copy">
-            <strong>BROS EXECUTIVE</strong>
-            <span>HOTEL OPERATIONS</span>
-          </span>
-        </Link>
-
-        <div className="property-switcher">
-          <span className="property-icon"><Icon name="bed" size={17} /></span>
-          <span className="property-copy"><strong>Main property</strong><small>Juba, South Sudan</small></span>
-          <Icon name="chevron" size={15} />
-        </div>
-
-        <nav className="side-nav" aria-label="Main navigation">
-          {navigation.map((item) => (
-            <div key={item.label}>
-              {item.section && <p className="nav-section">{item.section}</p>}
-              {item.href ? (
-                <Link
-                  className={`nav-link${activeNav === item.label ? " nav-link--active" : ""}`}
-                  href={item.href}
-                  aria-current={activeNav === item.label ? "page" : undefined}
-                >
-                  <Icon name={item.icon} size={18} />
-                  <span>{item.label}</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  className="nav-link nav-link--planned"
-                  disabled
-                  title="Planned module"
-                  aria-label={`${item.label}, planned module`}
-                >
-                  <Icon name={item.icon} size={18} />
-                  <span>{item.label}</span>
-                  {item.label === "Reservations" && <span className="nav-count">8</span>}
-                </button>
-              )}
-            </div>
-          ))}
-        </nav>
-
-        <div className="sidebar-bottom">
-          <div className="help-card">
-            <span className="help-icon"><Icon name="sparkles" size={16} /></span>
-            <div><strong>Need a hand?</strong><span>Visit the team help desk</span></div>
-            <Icon name="chevron" size={15} />
-          </div>
-          <div className="profile-button">
-            <UserButton />
-            <span className="profile-copy"><strong>Signed in</strong><small>Hotel staff account</small></span>
-          </div>
-        </div>
-      </aside>
-
-      <section className="main-panel">
-        <header className="topbar">
-          <HotelLogo className="mobile-brand-logo" size={32} />
-          <div className="breadcrumb"><span>Workspace</span><Icon name="chevron" size={14} /><strong>{activeNav}</strong></div>
-          <div className="topbar-actions">
-            <label className="search-box">
-              <Icon name="search" size={17} />
-              <input
-                aria-label="Search today's arrivals"
-                placeholder="Search today’s arrivals..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <kbd>⌘ K</kbd>
-            </label>
-            <span className="icon-button notification-button" aria-label="Notifications">
-              <Icon name="bell" size={18} /><span className="notification-dot" />
-            </span>
-            <span className="topbar-divider" />
-            <div className="date-display"><span>Friday, 31 October 2026</span><small>Hotel local time · EAT</small></div>
-          </div>
-        </header>
-
-        <div className="dashboard-content">
+    <ManagementShell
+      activeNav="Overview"
+      topbarActions={
+        <label className="search-box">
+          <Icon name="search" size={17} />
+          <input
+            aria-label="Search today's arrivals"
+            placeholder="Search today’s arrivals..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <kbd>⌘ K</kbd>
+        </label>
+      }
+    >
           <div className="welcome-row">
             <div>
               <p className="eyebrow">FRIDAY, OCTOBER 31, 2026 <span className="live-dot" /> TODAY AT A GLANCE</p>
@@ -236,8 +164,6 @@ export default function DashboardPage() {
           </section>
 
           <footer className="dashboard-footer"><span>© 2026 Bros Executive Hotel</span><span>Operational data shown is sample content for the initial dashboard.</span><button type="button">System status <i /></button></footer>
-        </div>
-      </section>
-    </main>
+    </ManagementShell>
   );
 }
