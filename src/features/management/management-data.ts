@@ -9,7 +9,7 @@ type NavigationItem = {
 
 export const managementNavigation: NavigationItem[] = [
   { label: "Overview", icon: "grid", section: "Workspace", href: "/management" },
-  { label: "Reservations", icon: "calendar" },
+  { label: "Reservations", icon: "calendar", href: "/management/reservations" },
   { label: "Rooms", icon: "bed", section: "Hotel operations", href: "/management/rooms" },
   { label: "Housekeeping", icon: "sparkles" },
   { label: "Payments", icon: "wallet" },

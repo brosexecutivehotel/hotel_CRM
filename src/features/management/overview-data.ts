@@ -30,14 +30,16 @@ export type OverviewActivity = {
 };
 
 export type ChartRange = "Week" | "Month" | "Year";
-export type ChartSet = { values: number[]; labels: string[] };
+export type ChartSet = { values: number[]; labels: string[]; totals: number[]; max: number };
 
 export type OverviewData = {
+  selectedDate: string; // YYYY-MM-DD in hotel timezone
+  isToday: boolean;
   today: {
-    iso: string; // YYYY-MM-DD in hotel timezone
+    iso: string; // selected date
     long: string; // e.g. "Tuesday, 10 November 2026"
-    short: string; // e.g. "Today, Nov 10"
-    time: string; // e.g. "10:42 AM"
+    short: string; // e.g. "Today, Nov 10" or "Mon, Nov 9"
+    time: string; // current hotel time or "—"
   };
   rooms: {
     total: number;
@@ -66,25 +68,34 @@ function formatInHotelTz(date: Date, options: Intl.DateTimeFormatOptions): strin
   return new Intl.DateTimeFormat("en-GB", { timeZone: HOTEL_TIMEZONE, ...options }).format(date);
 }
 
-function getHotelTodayParts(now = new Date()) {
-  // en-CA gives YYYY-MM-DD
-  const iso = new Intl.DateTimeFormat("en-CA", {
+function getHotelIso(date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: HOTEL_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(now);
+  }).format(date);
+}
 
-  const long = formatInHotelTz(now, {
+function isValidIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}
+
+function formatSelectedDateParts(selectedIso: string, now = new Date()) {
+  const nowIso = getHotelIso(now);
+  const isToday = selectedIso === nowIso;
+  const date = new Date(`${selectedIso}T12:00:00Z`);
+  const long = formatInHotelTz(date, {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
-  const short = `Today, ${formatInHotelTz(now, { month: "short", day: "numeric" })}`;
-  const time = formatInHotelTz(now, { hour: "numeric", minute: "2-digit", hour12: true });
-
-  return { iso, long, short, time };
+  const short = isToday
+    ? `Today, ${formatInHotelTz(date, { month: "short", day: "numeric" })}`
+    : formatInHotelTz(date, { weekday: "short", month: "short", day: "numeric" });
+  const time = isToday ? formatInHotelTz(now, { hour: "numeric", minute: "2-digit", hour12: true }) : "—";
+  return { iso: selectedIso, long, short, time, isToday };
 }
 
 function initialsFromName(name: string): string {
@@ -151,52 +162,168 @@ function activityPresentation(action: string): { title: string; icon: IconName; 
   }
 }
 
-function buildEmptyChartSets(): Record<ChartRange, ChartSet> {
+function isoDateUtc(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function addDaysUtc(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return isoDateUtc(d);
+}
+
+function startOfMonthUtc(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+function addMonthsUtc(iso: string, months: number): string {
+  const d = new Date(`${startOfMonthUtc(iso)}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return startOfMonthUtc(isoDateUtc(d));
+}
+
+function dayLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
+}
+
+function monthLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
+}
+
+function toChartSet(labels: string[], totals: number[]): ChartSet {
+  const max = Math.max(0, ...totals);
+  const values = totals.map((t) => (max > 0 ? Math.max(2, Math.round((t / max) * 100)) : 0));
+  // keep zero bars at 0
+  for (let i = 0; i < totals.length; i++) if (totals[i] === 0) values[i] = 0;
+  return { labels, totals, max, values };
+}
+
+async function buildChartSets(selectedIso: string): Promise<Record<ChartRange, ChartSet>> {
+  const db = getDb();
+
+  // Week: last 7 days ending selected date
+  const weekStart = addDaysUtc(selectedIso, -6);
+  const weekEndExclusive = addDaysUtc(selectedIso, 1);
+
+  // Month: last 30 days in 6 buckets (~5 days) ending selected date
+  const monthStart = addDaysUtc(selectedIso, -29);
+  const monthEndExclusive = addDaysUtc(selectedIso, 1);
+
+  // Year: 12 months ending selected month
+  const yearStartMonth = addMonthsUtc(selectedIso, -11);
+  const yearEndMonthExclusive = addMonthsUtc(selectedIso, 1);
+
+  const [weekRows, monthRows, yearRows] = await Promise.all([
+    db.execute(sql`
+      select date_trunc('day', ${payments.paidAt})::date::text as bucket, coalesce(sum(${payments.amount}), 0) as total
+      from ${payments}
+      where ${payments.status} = 'paid'
+        and ${payments.paidAt} >= ${`${weekStart}T00:00:00Z`}::timestamptz
+        and ${payments.paidAt} < ${`${weekEndExclusive}T00:00:00Z`}::timestamptz
+      group by 1
+    `),
+    db.execute(sql`
+      select date_trunc('day', ${payments.paidAt})::date::text as bucket, coalesce(sum(${payments.amount}), 0) as total
+      from ${payments}
+      where ${payments.status} = 'paid'
+        and ${payments.paidAt} >= ${`${monthStart}T00:00:00Z`}::timestamptz
+        and ${payments.paidAt} < ${`${monthEndExclusive}T00:00:00Z`}::timestamptz
+      group by 1
+    `),
+    db.execute(sql`
+      select date_trunc('month', ${payments.paidAt})::date::text as bucket, coalesce(sum(${payments.amount}), 0) as total
+      from ${payments}
+      where ${payments.status} = 'paid'
+        and ${payments.paidAt} >= ${`${yearStartMonth}T00:00:00Z`}::timestamptz
+        and ${payments.paidAt} < ${`${yearEndMonthExclusive}T00:00:00Z`}::timestamptz
+      group by 1
+    `),
+  ]);
+
+  const weekMap = new Map<string, number>();
+  for (const row of (weekRows as unknown as { bucket: string; total: string }[])) weekMap.set(String(row.bucket), Number(row.total));
+  const weekLabels: string[] = [];
+  const weekTotals: number[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDaysUtc(weekStart, i);
+    weekLabels.push(dayLabel(d));
+    weekTotals.push(weekMap.get(d) ?? 0);
+  }
+
+  const dayTotalsMap = new Map<string, number>();
+  for (const row of (monthRows as unknown as { bucket: string; total: string }[])) dayTotalsMap.set(String(row.bucket), Number(row.total));
+  const monthLabels: string[] = [];
+  const monthTotals: number[] = [];
+  // 6 buckets of 5 days covering 30 days
+  for (let b = 0; b < 6; b++) {
+    const start = addDaysUtc(monthStart, b * 5);
+    let total = 0;
+    for (let i = 0; i < 5; i++) total += dayTotalsMap.get(addDaysUtc(start, i)) ?? 0;
+    monthLabels.push(String(new Date(`${start}T12:00:00Z`).getUTCDate()));
+    monthTotals.push(total);
+  }
+
+  const yearMap = new Map<string, number>();
+  for (const row of (yearRows as unknown as { bucket: string; total: string }[])) {
+    const key = String(row.bucket).slice(0, 7) + "-01";
+    yearMap.set(key, Number(row.total));
+  }
+  const yearLabels: string[] = [];
+  const yearTotals: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    const m = addMonthsUtc(yearStartMonth, i);
+    yearLabels.push(monthLabel(m));
+    yearTotals.push(yearMap.get(m) ?? 0);
+  }
+
   return {
-    Week: { values: [0, 0, 0, 0, 0, 0, 0], labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
-    Month: { values: [0, 0, 0, 0, 0, 0, 0], labels: ["1", "5", "10", "15", "20", "25", "30"] },
-    Year: { values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] },
+    Week: toChartSet(weekLabels, weekTotals),
+    Month: toChartSet(monthLabels, monthTotals),
+    Year: toChartSet(yearLabels, yearTotals),
   };
 }
 
-export async function getOverviewData(now = new Date()): Promise<OverviewData> {
+export async function getOverviewData(selectedDate?: string, now = new Date()): Promise<OverviewData> {
   const db = getDb();
-  const today = getHotelTodayParts(now);
-  const todayStart = new Date(`${today.iso}T00:00:00.000Z`); // payments stored as timestamptz; approximate
-  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const nowIso = getHotelIso(now);
+  const selectedIso = selectedDate && isValidIsoDate(selectedDate) ? selectedDate : nowIso;
+  const { isToday, ...today } = formatSelectedDateParts(selectedIso, now);
 
-  const [roomRows, arrivalRows, departureRows, revenueRows, activityRows] = await Promise.all([
+  // Use UTC day bounds for paidAt comparisons (timestamptz). Selected date is hotel-local date.
+  const dayStart = new Date(`${selectedIso}T00:00:00Z`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const [roomRows, arrivalRows, departureRows, revenueRows, activityRows, chartSets] = await Promise.all([
     db.select({ status: rooms.status, count: count() }).from(rooms).groupBy(rooms.status),
     db
       .select({
         guestName: guests.name,
-        guestSegment: guests.segment,
         roomNumber: rooms.number,
         status: reservations.status,
         source: reservations.source,
         nights: reservations.nights,
-        checkIn: reservations.checkIn,
       })
       .from(reservations)
       .innerJoin(guests, eq(reservations.guestId, guests.id))
       .innerJoin(rooms, eq(reservations.roomId, rooms.id))
-      .where(and(eq(reservations.checkIn, today.iso), sql`${reservations.status} != 'cancelled'`))
+      .where(and(eq(reservations.checkIn, selectedIso), sql`${reservations.status} != 'cancelled'`))
       .orderBy(reservations.checkIn),
     db
       .select({ status: reservations.status })
       .from(reservations)
-      .where(and(eq(reservations.checkOut, today.iso), sql`${reservations.status} != 'cancelled'`)),
+      .where(and(eq(reservations.checkOut, selectedIso), sql`${reservations.status} != 'cancelled'`)),
     db
       .select({ total: sum(payments.amount) })
       .from(payments)
       .where(
         and(
           eq(payments.status, "paid"),
-          gte(payments.paidAt, todayStart),
-          lt(payments.paidAt, tomorrowStart),
+          gte(payments.paidAt, dayStart),
+          lt(payments.paidAt, dayEnd),
         ),
       ),
     db.select().from(activityLog).orderBy(desc(activityLog.createdAt)).limit(8),
+    buildChartSets(selectedIso),
   ]);
 
   const counts: RoomStatusCounts = { occupied: 0, ready: 0, cleaning: 0, maintenance: 0, reserved: 0 };
@@ -212,7 +339,7 @@ export async function getOverviewData(now = new Date()): Promise<OverviewData> {
     name: row.guestName,
     detail: `${labelSource(row.source)} · ${row.nights} ${row.nights === 1 ? "night" : "nights"}`,
     room: row.roomNumber,
-    time: "—", // check-in time not tracked yet
+    time: "—",
     status: labelReservationStatus(row.status),
   }));
   const arrivalsCheckedIn = arrivalItems.filter((a) => a.status === "Checked in").length;
@@ -234,6 +361,8 @@ export async function getOverviewData(now = new Date()): Promise<OverviewData> {
   });
 
   return {
+    selectedDate: selectedIso,
+    isToday,
     today,
     rooms: { total: totalRooms, counts, occupancyPercent },
     arrivals: {
@@ -249,6 +378,22 @@ export async function getOverviewData(now = new Date()): Promise<OverviewData> {
     },
     revenueToday,
     recentActivity,
-    chartSets: buildEmptyChartSets(),
+    chartSets,
   };
+}
+
+export async function getRecentActivity(limit = 50): Promise<OverviewActivity[]> {
+  const db = getDb();
+  const now = new Date();
+  const rows = await db.select().from(activityLog).orderBy(desc(activityLog.createdAt)).limit(limit);
+  return rows.map((row) => {
+    const p = activityPresentation(row.action);
+    return {
+      title: p.title,
+      detail: row.detail || row.actorName || "—",
+      time: row.createdAt ? relativeTime(row.createdAt, now) : "",
+      icon: p.icon,
+      tone: p.tone,
+    };
+  });
 }

@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { ManagementShell } from "./management-shell";
 import type { ChartRange, OverviewData } from "./overview-data";
@@ -21,8 +23,27 @@ function greetingForHour(isoHour: number): string {
 }
 
 export default function ManagementDashboard({ userName, overview }: Props) {
+  const router = useRouter();
   const [chartRange, setChartRange] = useState<ChartRange>("Week");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+      if (e.key === "Escape" && document.activeElement === searchRef.current) {
+        setSearch("");
+        searchRef.current?.blur();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const filteredArrivals = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -45,6 +66,24 @@ export default function ManagementDashboard({ userName, overview }: Props) {
   const greeting = greetingForHour(hour24);
 
   const chartHasData = chart.values.some((v) => v > 0);
+  const chartTotal = chart.totals.reduce((a, b) => a + b, 0);
+  const chartMax = Math.max(chart.max, 1);
+  const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => `$ ${formatMoney(Math.round(chartMax * f))}`);
+
+  function openDatePicker() {
+    const input = dateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") input.showPicker();
+    else input.click();
+  }
+
+  function onDateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    if (!value) return;
+    const params = new URLSearchParams();
+    params.set("date", value);
+    router.push(`/management?${params.toString()}`);
+  }
 
   return (
     <ManagementShell
@@ -55,30 +94,40 @@ export default function ManagementDashboard({ userName, overview }: Props) {
         <label className="search-box">
           <Icon name="search" size={17} />
           <input
+            ref={searchRef}
             aria-label="Search today's arrivals"
             placeholder="Search today’s arrivals..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-          <kbd>⌘ K</kbd>
+          <kbd>Ctrl K</kbd>
         </label>
       }
     >
       <div className="welcome-row">
         <div>
           <p className="eyebrow">
-            {today.long.toUpperCase()} <span className="live-dot" /> TODAY AT A GLANCE
+            {today.long.toUpperCase()} <span className="live-dot" /> {overview.isToday ? "TODAY AT A GLANCE" : "DAY AT A GLANCE"}
           </p>
           <h1>
             {greeting}, {userName} <span className="wave">✦</span>
           </h1>
-          <p className="welcome-subtitle">Here’s what’s happening across your hotel today.</p>
+          <p className="welcome-subtitle">Here’s what’s happening across your hotel {overview.isToday ? "today" : "on this day"}.</p>
         </div>
-        <div className="date-filter">
+        <button type="button" className="date-filter" onClick={openDatePicker} aria-label="Choose date">
           <Icon name="calendar" size={17} />
           <span>{today.short}</span>
           <Icon name="chevron" size={14} />
-        </div>
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={today.iso}
+            onChange={onDateChange}
+            aria-label="Select date"
+            style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+            tabIndex={-1}
+          />
+        </button>
       </div>
 
       <section className="metric-grid" aria-label="Today's key metrics">
@@ -173,11 +222,15 @@ export default function ManagementDashboard({ userName, overview }: Props) {
             </div>
           </div>
           <div className="chart-summary">
-            <strong>$ {formatMoney(0)}</strong>
-            <small>{chartHasData ? `compared to previous ${chartRange.toLowerCase()}` : "No revenue data yet"}</small>
+            <strong>$ {formatMoney(chartTotal)}</strong>
+            <small>
+              {chartHasData
+                ? `Paid revenue · ${chartRange === "Week" ? "last 7 days" : chartRange === "Month" ? "last 30 days" : "last 12 months"}`
+                : "No paid revenue data in this range"}
+            </small>
           </div>
           <div className="chart" role="img" aria-label={`${chartRange} revenue trend chart`}>
-            <div className="chart-y-labels"><span>$8k</span><span>$6k</span><span>$4k</span><span>$2k</span><span>$0</span></div>
+            <div className="chart-y-labels">{yTicks.map((t, i) => <span key={i}>{t}</span>)}</div>
             <div className="chart-plot">
               <div className="chart-gridlines"><i /><i /><i /><i /><i /></div>
               <div className="chart-bars">
@@ -204,6 +257,7 @@ export default function ManagementDashboard({ userName, overview }: Props) {
         <article className="panel room-panel">
           <div className="panel-heading">
             <div><h2>Room status</h2><p>Live inventory across the property</p></div>
+            <Link href="/management/rooms" className="text-button">Rooms <Icon name="chevron" size={14} /></Link>
           </div>
           <div className="room-total">
             <strong>{rooms.total}</strong><span>Total rooms</span>
@@ -231,7 +285,7 @@ export default function ManagementDashboard({ userName, overview }: Props) {
               <span className="status-percent">{rooms.total ? `${((rooms.counts.maintenance / rooms.total) * 100).toFixed(1)}%` : "—"}</span>
             </div>
           </div>
-          <div className="occupancy-banner">
+          <Link href="/management/rooms" className="occupancy-banner" style={{ textDecoration: "none", color: "inherit" }}>
             <span className="occupancy-ring"><Icon name="bed" size={16} /></span>
             <span>
               <strong>{rooms.total > 0 ? `${occ.toFixed(1)}% occupancy` : "Set up your room inventory"}</strong>
@@ -242,7 +296,7 @@ export default function ManagementDashboard({ userName, overview }: Props) {
               </small>
             </span>
             <Icon name="chevron" size={16} />
-          </div>
+          </Link>
         </article>
       </section>
 
@@ -250,10 +304,10 @@ export default function ManagementDashboard({ userName, overview }: Props) {
         <article className="panel arrivals-panel">
           <div className="panel-heading">
             <div>
-              <h2>Today’s arrivals <span className="heading-count">{arrivals.total}</span></h2>
-              <p>Guests expected to check in today</p>
+              <h2>{overview.isToday ? "Today’s arrivals" : "Arrivals"} <span className="heading-count">{arrivals.total}</span></h2>
+              <p>Guests expected to check in {overview.isToday ? "today" : "on this day"}</p>
             </div>
-            <span className="text-button">Reservations <Icon name="chevron" size={14} /></span>
+            <Link href="/management/reservations" className="text-button">Reservations <Icon name="chevron" size={14} /></Link>
           </div>
           <div className="table-wrap">
             <table>
@@ -285,12 +339,15 @@ export default function ManagementDashboard({ userName, overview }: Props) {
               <p className="empty-search">No arrivals match “{search}”.</p>
             )}
           </div>
-          <span className="mobile-view-all">{arrivals.total} arrivals today <Icon name="chevron" size={15} /></span>
+          <Link href="/management/reservations" className="mobile-view-all" style={{ textDecoration: "none" }}>
+            {arrivals.total} arrivals {overview.isToday ? "today" : "this day"} <Icon name="chevron" size={15} />
+          </Link>
         </article>
 
         <article className="panel activity-panel">
           <div className="panel-heading">
             <div><h2>Recent activity</h2><p>Latest updates from your team</p></div>
+            <Link href="/management/activity" className="text-button">View all <Icon name="chevron" size={14} /></Link>
           </div>
           <div className="activity-list">
             {overview.recentActivity.length === 0 && (
@@ -306,7 +363,7 @@ export default function ManagementDashboard({ userName, overview }: Props) {
               </div>
             ))}
           </div>
-          <span className="activity-link">Activity log <Icon name="chevron" size={14} /></span>
+          <Link href="/management/activity" className="activity-link">Activity log <Icon name="chevron" size={14} /></Link>
         </article>
       </section>
 

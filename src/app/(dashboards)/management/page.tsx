@@ -9,10 +9,15 @@ export const metadata: Metadata = {
   description: "Property-wide hotel performance and operational overview.",
 };
 
-export default async function ManagementPage() {
+type Props = {
+  searchParams?: Promise<{ date?: string }>;
+};
+
+export default async function ManagementPage({ searchParams }: Props) {
   await requireDashboardRole("management");
 
-  const [overview, user] = await Promise.all([getOverviewData(), currentUser()]);
+  const params = (await searchParams) ?? {};
+  const [overview, user] = await Promise.all([getOverviewData(params.date), currentUser()]);
   const userName =
     user?.firstName ||
     user?.username ||

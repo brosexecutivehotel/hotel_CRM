@@ -80,7 +80,11 @@ export function ManagementShell({ activeNav, topbarActions, children, dateLabel,
       <section className="main-panel">
         <header className="topbar">
           <HotelLogo className="mobile-brand-logo" size={32} />
-          <div className="breadcrumb"><span>Workspace</span><Icon name="chevron" size={14} /><strong>{activeNav}</strong></div>
+          <div className="breadcrumb">
+            <Link href="/management" style={{ color: "inherit", textDecoration: "none" }}>Workspace</Link>
+            <Icon name="chevron" size={14} />
+            <strong>{activeNav}</strong>
+          </div>
           <div className="topbar-actions">
             {topbarActions}
             <ThemeToggle />
