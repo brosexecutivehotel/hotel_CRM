@@ -432,6 +432,18 @@ tbody tr:hover td { background: #fafbfc; }
 .room-form-submit:active { transform: translateY(1px); }
 .room-form-submit:disabled { cursor: default; opacity: .6; }
 .room-form-hint { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row-action {
+  height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--ink); font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.row-action:hover:not(:disabled) { background: var(--surface-muted); border-color: #d7dbe2; }
+.row-action:disabled { opacity: .6; cursor: default; }
+.row-action--primary { background: var(--brand-gold-soft); border-color: rgba(244,185,0,.35); color: #7a5b00; }
+.row-action--primary:hover:not(:disabled) { background: rgba(244,185,0,.24); }
+.row-action--danger { background: var(--red-soft); border-color: rgba(220,76,62,.25); color: #b42318; }
+.row-action--danger:hover:not(:disabled) { background: rgba(220,76,62,.2); }
 .status-pill--alert { background: var(--red-soft); color: #b42318; }
 .status-pill--alert i { background: #dc4c3e; }
 
@@ -511,6 +523,10 @@ tbody tr:hover td { background: #fafbfc; }
 [data-theme="dark"] .room-form-field label { color: var(--muted); }
 [data-theme="dark"] .room-form-submit { background: var(--brand-gold); color: #111; }
 [data-theme="dark"] .room-form-submit:hover { background: #ffca1f; }
+[data-theme="dark"] .row-action { background: var(--surface-muted); border-color: var(--line); color: var(--ink); }
+[data-theme="dark"] .row-action:hover:not(:disabled) { background: #2b313c; }
+[data-theme="dark"] .row-action--primary { background: rgba(244,185,0,.16); border-color: rgba(244,185,0,.28); color: var(--brand-gold); }
+[data-theme="dark"] .row-action--danger { background: rgba(220,76,62,.16); border-color: rgba(220,76,62,.28); color: #f87171; }
 [data-theme="dark"] .auth-page { background: linear-gradient(145deg, #14171c 0%, #1b1f25 55%, #2a2414 100%); }
 [data-theme="dark"] .auth-message { background: var(--surface); border-color: var(--line); }
 [data-theme="dark"] .auth-eyebrow { color: var(--brand-gold-muted); }
