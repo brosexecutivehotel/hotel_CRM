@@ -240,8 +240,14 @@ async function buildChartSets(selectedIso: string): Promise<Record<ChartRange, C
     `),
   ]);
 
+  const asRows = <T,>(result: unknown): T[] =>
+    Array.isArray(result) ? (result as T[]) : ((result as { rows?: T[] } | null)?.rows ?? []);
+  const weekResult = asRows<{ bucket: string; total: string | number }>(weekRows);
+  const monthResult = asRows<{ bucket: string; total: string | number }>(monthRows);
+  const yearResult = asRows<{ bucket: string; total: string | number }>(yearRows);
+
   const weekMap = new Map<string, number>();
-  for (const row of (weekRows as unknown as { bucket: string; total: string }[])) weekMap.set(String(row.bucket), Number(row.total));
+  for (const row of weekResult) weekMap.set(String(row.bucket), Number(row.total));
   const weekLabels: string[] = [];
   const weekTotals: number[] = [];
   for (let i = 0; i < 7; i++) {
@@ -251,7 +257,7 @@ async function buildChartSets(selectedIso: string): Promise<Record<ChartRange, C
   }
 
   const dayTotalsMap = new Map<string, number>();
-  for (const row of (monthRows as unknown as { bucket: string; total: string }[])) dayTotalsMap.set(String(row.bucket), Number(row.total));
+  for (const row of monthResult) dayTotalsMap.set(String(row.bucket), Number(row.total));
   const monthLabels: string[] = [];
   const monthTotals: number[] = [];
   // 6 buckets of 5 days covering 30 days
@@ -264,7 +270,7 @@ async function buildChartSets(selectedIso: string): Promise<Record<ChartRange, C
   }
 
   const yearMap = new Map<string, number>();
-  for (const row of (yearRows as unknown as { bucket: string; total: string }[])) {
+  for (const row of yearResult) {
     const key = String(row.bucket).slice(0, 7) + "-01";
     yearMap.set(key, Number(row.total));
   }
