@@ -157,6 +157,12 @@ function activityPresentation(action: string): { title: string; icon: IconName; 
       return { title: "Guest checked out", icon: "arrow-up", tone: "amber" };
     case "payment_received":
       return { title: "Payment received", icon: "wallet", tone: "amber" };
+    case "housekeeping_task_created":
+      return { title: "Housekeeping task created", icon: "sparkles", tone: "blue" };
+    case "housekeeping_task_started":
+      return { title: "Housekeeping in progress", icon: "sparkles", tone: "amber" };
+    case "housekeeping_task_done":
+      return { title: "Room marked ready", icon: "check", tone: "green" };
     default:
       return { title: action.replace(/_/g, " "), icon: "sparkles", tone: "blue" };
   }

@@ -11,7 +11,7 @@ export const managementNavigation: NavigationItem[] = [
   { label: "Overview", icon: "grid", section: "Workspace", href: "/management" },
   { label: "Reservations", icon: "calendar", href: "/management/reservations" },
   { label: "Rooms", icon: "bed", section: "Hotel operations", href: "/management/rooms" },
-  { label: "Housekeeping", icon: "sparkles" },
+  { label: "Housekeeping", icon: "sparkles", href: "/management/housekeeping" },
   { label: "Payments", icon: "wallet" },
   { label: "Restaurant & bar", icon: "utensils" },
   { label: "Inventory", icon: "boxes" },

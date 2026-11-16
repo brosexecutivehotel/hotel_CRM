@@ -241,8 +241,9 @@ h1 { margin-bottom: 4px; font-family: var(--font-display); font-size: clamp(24px
 .revenue-sparkline span:last-child { height: 22px; background: #2ea46f; }
 
 /* ---------- Overview grids & panels ---------- */
-.overview-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 16px; margin-bottom: 16px; }
-.panel { min-width: 0; padding: 18px 20px; }
+.overview-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+.overview-grid > .panel { min-width: 0; }
+.panel { min-width: 0; padding: 18px 20px; overflow: hidden; }
 .panel-heading { display: flex; min-height: 34px; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .panel-heading h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 3px; font-size: 14px; font-weight: 600; letter-spacing: -.02em; color: var(--ink-strong); }
 .panel-heading p { margin: 0; color: var(--subtle); font-size: 11px; }
@@ -401,6 +402,9 @@ tbody tr:hover td { background: #fafbfc; }
   .text-button { display: none; }
   .mobile-view-all { display: flex; width: 100%; align-items: center; justify-content: center; gap: 4px; margin-top: 8px; padding: 9px; border: 0; border-radius: 8px; background: var(--brand-gold-soft); color: #6b5200; font-size: 11px; font-weight: 600; }
 }
+@media (max-width: 500px) {
+  .room-form-row { grid-template-columns: 1fr; }
+}
 @media (max-width: 375px) {
   .dashboard-content { padding-right: 10px; padding-left: 10px; }
   .metric-side { display: none; }
@@ -410,17 +414,19 @@ tbody tr:hover td { background: #fafbfc; }
 }
 
 /* ---------- Room inventory input module ---------- */
-.room-form { display: grid; gap: 14px; margin-top: 14px; }
-.room-form-field { display: grid; gap: 6px; }
+.room-form { display: grid; gap: 14px; margin-top: 14px; min-width: 0; }
+.room-form-field { display: grid; gap: 6px; min-width: 0; }
 .room-form-field label { color: #4b5563; font-size: 11px; font-weight: 600; }
 .room-form-field input, .room-form-field select {
+  width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
   height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--surface); color: var(--ink); font-size: 13px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .room-form-field input:hover, .room-form-field select:hover { border-color: #d7dbe2; }
 .room-form-field input[aria-invalid="true"], .room-form-field select[aria-invalid="true"] { border-color: #dc4c3e; }
-.room-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.room-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.room-form-row > * { min-width: 0; }
 .field-error { margin: 0; color: #dc4c3e; font-size: 11px; }
 .form-success { margin: 0; padding: 10px 12px; border: 1px solid #c7e8d8; border-radius: var(--radius-sm); background: var(--green-soft); color: #166534; font-size: 12px; font-weight: 500; }
 .room-form-submit {
