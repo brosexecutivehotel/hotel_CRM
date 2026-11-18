@@ -163,6 +163,24 @@ function activityPresentation(action: string): { title: string; icon: IconName; 
       return { title: "Housekeeping in progress", icon: "sparkles", tone: "amber" };
     case "housekeeping_task_done":
       return { title: "Room marked ready", icon: "check", tone: "green" };
+    case "fb_order_created":
+      return { title: "F&B order created", icon: "utensils", tone: "blue" };
+    case "fb_order_paid":
+      return { title: "F&B order paid", icon: "wallet", tone: "amber" };
+    case "fb_order_updated":
+      return { title: "F&B order updated", icon: "utensils", tone: "purple" };
+    case "inventory_item_created":
+      return { title: "Inventory item added", icon: "boxes", tone: "blue" };
+    case "inventory_stock_adjusted":
+      return { title: "Inventory stock updated", icon: "boxes", tone: "amber" };
+    case "maintenance_created":
+      return { title: "Maintenance request created", icon: "wrench", tone: "blue" };
+    case "maintenance_started":
+      return { title: "Maintenance in progress", icon: "wrench", tone: "amber" };
+    case "maintenance_resolved":
+      return { title: "Maintenance resolved", icon: "check", tone: "green" };
+    case "maintenance_updated":
+      return { title: "Maintenance updated", icon: "wrench", tone: "purple" };
     default:
       return { title: action.replace(/_/g, " "), icon: "sparkles", tone: "blue" };
   }

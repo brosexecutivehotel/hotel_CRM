@@ -86,10 +86,11 @@ function revalidateReservationViews() {
   revalidatePath("/management/reservations");
   revalidatePath("/management");
   revalidatePath("/management/rooms");
+  revalidatePath("/front-desk");
 }
 
 export async function createReservation(_prev: ReservationFormState, formData: FormData): Promise<ReservationFormState> {
-  await requireDashboardRole("management");
+  await requireDashboardRole(["management", "front_desk"]);
 
   const parsed = schema.safeParse({
     guestName: formData.get("guestName") ?? "",
@@ -187,7 +188,7 @@ const statusSchema = z.object({
 });
 
 export async function updateReservationStatus(_prev: ReservationActionState, formData: FormData): Promise<ReservationActionState> {
-  await requireDashboardRole("management");
+  await requireDashboardRole(["management", "front_desk"]);
   const parsed = statusSchema.safeParse({ id: formData.get("id"), status: formData.get("status") });
   if (!parsed.success) return { ok: false, message: "Invalid reservation update." };
 

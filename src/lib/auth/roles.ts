@@ -29,10 +29,18 @@ export async function getSignedInDashboardRole(): Promise<DashboardRole> {
   return role;
 }
 
-export async function requireDashboardRole(requiredRole: DashboardRole): Promise<void> {
+/**
+ * Ensures the signed-in user can access a dashboard/feature.
+ * Management can access all dashboards; other roles can access only their own (or listed roles).
+ * Returns the signed-in user's actual role.
+ */
+export async function requireDashboardRole(requiredRole: DashboardRole | DashboardRole[]): Promise<DashboardRole> {
   const role = await getSignedInDashboardRole();
+  const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 
-  if (role !== requiredRole) {
-    redirect(dashboardPaths[role]);
+  if (role === "management" || allowed.includes(role)) {
+    return role;
   }
+
+  redirect(dashboardPaths[role]);
 }

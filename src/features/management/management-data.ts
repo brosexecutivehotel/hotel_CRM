@@ -12,12 +12,12 @@ export const managementNavigation: NavigationItem[] = [
   { label: "Reservations", icon: "calendar", href: "/management/reservations" },
   { label: "Rooms", icon: "bed", section: "Hotel operations", href: "/management/rooms" },
   { label: "Housekeeping", icon: "sparkles", href: "/management/housekeeping" },
-  { label: "Payments", icon: "wallet" },
-  { label: "Restaurant & bar", icon: "utensils" },
-  { label: "Inventory", icon: "boxes" },
-  { label: "Maintenance", icon: "wrench" },
-  { label: "Reports", icon: "chart", section: "Management" },
-  { label: "Settings", icon: "settings" },
+  { label: "Payments", icon: "wallet", href: "/management/payments" },
+  { label: "Restaurant & bar", icon: "utensils", href: "/management/restaurant-bar" },
+  { label: "Inventory", icon: "boxes", href: "/management/inventory" },
+  { label: "Maintenance", icon: "wrench", href: "/management/maintenance" },
+  { label: "Reports", icon: "chart", section: "Management", href: "/management/reports" },
+  { label: "Settings", icon: "settings", href: "/management/settings" },
 ];
 
 export const arrivals = [

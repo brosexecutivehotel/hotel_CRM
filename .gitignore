@@ -7,3 +7,7 @@ node_modules/
 !.env.example
 .clerk/
 .vercel
+.agents/
+.aider-desk/
+Glow Icons v1.0/
+skills-lock.json

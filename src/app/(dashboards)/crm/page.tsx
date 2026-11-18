@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function CrmPage() {
-  await requireDashboardRole("crm");
-  return <CrmDashboard />;
+  const viewerRole = await requireDashboardRole("crm");
+  return <CrmDashboard viewerRole={viewerRole} />;
 }

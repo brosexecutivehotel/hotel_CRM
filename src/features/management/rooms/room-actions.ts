@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { currentUser } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { activityLog, rooms } from "@/db/schema";
@@ -12,6 +13,8 @@ export type RoomFormState = {
   message?: string;
   errors?: Record<string, string[]>;
 };
+
+export type SimpleState = { ok: boolean; message?: string };
 
 const ROOM_STATUSES = ["ready", "cleaning", "reserved", "occupied", "maintenance"] as const;
 
@@ -94,5 +97,48 @@ export async function createRoom(_prevState: RoomFormState, formData: FormData):
   });
 
   revalidatePath("/management/rooms");
+  revalidatePath("/front-desk");
   return { ok: true, message: `Room ${number} added to the inventory.` };
+}
+
+const updateStatusSchema = z.object({
+  roomId: z.string().uuid(),
+  status: z.enum(ROOM_STATUSES),
+});
+
+export async function updateRoomStatus(_prev: SimpleState, formData: FormData): Promise<SimpleState> {
+  await requireDashboardRole(["management", "front_desk"]);
+  const parsed = updateStatusSchema.safeParse({ roomId: formData.get("roomId"), status: formData.get("status") });
+  if (!parsed.success) return { ok: false, message: "Invalid room update." };
+
+  const db = getDb();
+  const [room] = await db
+    .select({ id: rooms.id, number: rooms.number, status: rooms.status })
+    .from(rooms)
+    .where(eq(rooms.id, parsed.data.roomId))
+    .limit(1);
+  if (!room) return { ok: false, message: "Room not found." };
+  if (room.status === parsed.data.status) return { ok: true };
+
+  await db.update(rooms).set({ status: parsed.data.status, updatedAt: new Date() }).where(eq(rooms.id, room.id));
+
+  const user = await currentUser();
+  const actorName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress ||
+    "Staff";
+
+  await db.insert(activityLog).values({
+    actorId: user?.id ?? null,
+    actorName: actorName.slice(0, 120),
+    action: "room_status_updated",
+    detail: `Room ${room.number} → ${parsed.data.status.replace("_", " ")}`,
+  });
+
+  revalidatePath("/management/rooms");
+  revalidatePath("/management");
+  revalidatePath("/front-desk");
+  revalidatePath("/management/housekeeping");
+  return { ok: true, message: `Room ${room.number} updated.` };
 }

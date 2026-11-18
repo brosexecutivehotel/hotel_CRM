@@ -6,12 +6,14 @@ import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
 import { HotelLogo } from "@/components/brand/hotel-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { DashboardSwitcher } from "@/components/ui/dashboard-switcher";
+import type { DashboardRole } from "@/lib/auth/roles";
 import { guestProfiles, type GuestSegment } from "./crm-data";
 import styles from "./crm-dashboard.module.css";
 
 const segments: ("All guests" | GuestSegment)[] = ["All guests", "VIP", "Returning", "Corporate", "New"];
 
-export default function CrmDashboard() {
+export default function CrmDashboard({ viewerRole }: { viewerRole?: DashboardRole } = {}) {
   const [query, setQuery] = useState("");
   const [selectedSegment, setSelectedSegment] = useState<(typeof segments)[number]>("All guests");
 
@@ -53,6 +55,7 @@ export default function CrmDashboard() {
             <HotelLogo size={32} />
           </Link>
           <div className={styles.breadcrumb}>Customer relationship <span>/</span> <strong>Guest CRM</strong></div>
+          {viewerRole === "management" && <DashboardSwitcher viewerRole={viewerRole} current="crm" />}
           <ThemeToggle />
           <UserButton />
         </header>

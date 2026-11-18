@@ -6,29 +6,36 @@ import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
 import { HotelLogo } from "@/components/brand/hotel-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { frontDeskArrivals, frontDeskRooms } from "./front-desk-data";
+import { DashboardSwitcher } from "@/components/ui/dashboard-switcher";
+import type { DashboardRole } from "@/lib/auth/roles";
+import { ReservationRowActions } from "@/features/management/reservations/reservation-row-actions";
+import { ReservationForm } from "@/features/management/reservations/reservation-form";
+import { RoomStatusControl } from "./room-status-control";
+import type { FrontDeskData } from "./front-desk-data-server";
 import styles from "./front-desk-dashboard.module.css";
 
-const roomStateClasses = {
+const roomStateClasses: Record<string, string | undefined> = {
   Ready: styles.roomStateReady,
   Cleaning: styles.roomStateCleaning,
   Reserved: styles.roomStateReserved,
   Occupied: styles.roomStateOccupied,
+  Maintenance: styles.roomStateReserved,
 };
 
-export default function FrontDeskDashboard() {
+export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDeskData; viewerRole: DashboardRole }) {
   const [query, setQuery] = useState("");
 
   const visibleArrivals = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return frontDeskArrivals;
-
-    return frontDeskArrivals.filter((arrival) =>
+    if (!normalizedQuery) return data.arrivals;
+    return data.arrivals.filter((arrival) =>
       `${arrival.name} ${arrival.booking} ${arrival.room} ${arrival.status}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [query]);
+  }, [query, data.arrivals]);
+
+  const s = data.summary;
 
   return (
     <main className={styles.shell}>
@@ -39,8 +46,9 @@ export default function FrontDeskDashboard() {
         </Link>
         <span className={styles.workspaceLabel}>Front desk workspace</span>
         <div className={styles.headerRight}>
+          {viewerRole === "management" && <DashboardSwitcher viewerRole={viewerRole} current="front_desk" />}
           <ThemeToggle />
-          <span className={styles.localTime}><Icon name="clock" size={15} /> 10:42 AM <small>EAT</small></span>
+          <span className={styles.localTime}><Icon name="clock" size={15} /> {data.timeLabel.split(" ").slice(0, 2).join(" ")} <small>EAT</small></span>
           <UserButton />
         </div>
       </header>
@@ -48,82 +56,139 @@ export default function FrontDeskDashboard() {
       <div className={styles.content}>
         <section className={styles.pageHeading}>
           <div>
-            <p className={styles.kicker}>PROPERTY OPERATIONS <span /> FRIDAY, OCTOBER 31</p>
+            <p className={styles.kicker}>PROPERTY OPERATIONS <span /> {data.todayLabel}</p>
             <h1>Front desk</h1>
-            <p className={styles.subtitle}>Your arrivals, departures, and room readiness in one place.</p>
+            <p className={styles.subtitle}>Manage today&apos;s arrivals, departures, and room readiness.</p>
           </div>
           <div className={styles.headingActions}>
-            <span className={styles.secondaryButton}><Icon name="calendar" size={16} /> Today <span>⌄</span></span>
-            <button disabled title="Reservation creation will be added to the reservations module" type="button" className={styles.primaryButton}><Icon name="plus" size={16} /> New reservation</button>
+            <span className={styles.secondaryButton}><Icon name="calendar" size={16} /> Today</span>
+            <a href="#new-reservation" className={styles.primaryButton} style={{ textDecoration: "none" }}>
+              <Icon name="plus" size={16} /> New reservation
+            </a>
           </div>
         </section>
 
         <section className={styles.summaryGrid} aria-label="Front desk summary">
           <article className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Arrivals</span><span className={`${styles.summaryIcon} ${styles.iconBlue}`}><Icon name="arrow-down" size={18} /></span>
-            <strong>14</strong><small><b>5 checked in</b> · 9 expected</small>
+            <strong>{s.arrivalsTotal}</strong><small><b>{s.arrivalsCheckedIn} checked in</b> · {Math.max(0, s.arrivalsTotal - s.arrivalsCheckedIn)} expected</small>
           </article>
           <article className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Departures</span><span className={`${styles.summaryIcon} ${styles.iconAmber}`}><Icon name="arrow-up" size={18} /></span>
-            <strong>9</strong><small><b>4 checked out</b> · 5 expected</small>
+            <strong>{s.departuresTotal}</strong><small><b>{s.departuresCheckedOut} checked out</b> · {Math.max(0, s.departuresTotal - s.departuresCheckedOut)} expected</small>
           </article>
           <article className={styles.summaryCard}>
             <span className={styles.summaryLabel}>Rooms ready</span><span className={`${styles.summaryIcon} ${styles.iconGreen}`}><Icon name="check" size={18} /></span>
-            <strong>18</strong><small><b>6 in housekeeping</b> · 3 maintenance</small>
+            <strong>{s.roomsReady}</strong><small><b>{s.roomsHousekeeping} in housekeeping</b> · {s.roomsMaintenance} maintenance</small>
           </article>
           <article className={styles.summaryCard}>
             <span className={styles.summaryLabel}>In-house guests</span><span className={`${styles.summaryIcon} ${styles.iconViolet}`}><Icon name="users" size={18} /></span>
-            <strong>98</strong><small><b>78.4% occupancy</b> across 125 rooms</small>
+            <strong>{s.inHouseGuests}</strong><small><b>{s.occupancyPercent}% occupancy</b> across {s.totalRooms} rooms</small>
           </article>
         </section>
 
         <section className={styles.workGrid}>
           <article className={styles.panel}>
             <div className={styles.panelHeading}>
-              <div><h2>Arrival queue <span>14</span></h2><p>Prepare for today’s expected check-ins</p></div>
+              <div><h2>Arrival queue <span>{data.arrivals.length}</span></h2><p>Today&apos;s expected check-ins</p></div>
               <label className={styles.search}>
                 <Icon name="search" size={16} />
                 <input aria-label="Search arrivals" onChange={(event) => setQuery(event.target.value)} placeholder="Find a guest or room" value={query} />
               </label>
             </div>
             <div className={styles.tableScroller}>
-              <table className={styles.arrivalTable}>
-                <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>ARRIVAL</th><th>STAY</th><th>STATUS</th></tr></thead>
-                <tbody>
-                  {visibleArrivals.map((arrival) => (
-                    <tr key={arrival.booking}>
-                      <td><div className={styles.guestCell}><span className={styles.guestAvatar}>{arrival.initials}</span><span><strong>{arrival.name}</strong><small>{arrival.booking}</small></span></div></td>
-                      <td><strong className={styles.roomNumber}>{arrival.room}</strong></td>
-                      <td>{arrival.arrival}</td>
-                      <td>{arrival.nights} nights</td>
-                      <td><span className={arrival.status === "Checked in" ? styles.checkedIn : styles.expected}><i />{arrival.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {visibleArrivals.length === 0 && <p className={styles.emptyState}>No arrivals match “{query}”.</p>}
+              {data.arrivals.length === 0 ? (
+                <p className={styles.emptyState}>No arrivals scheduled for today.</p>
+              ) : (
+                <>
+                  <table className={styles.arrivalTable}>
+                    <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                    <tbody>
+                      {visibleArrivals.map((arrival) => (
+                        <tr key={arrival.id}>
+                          <td><div className={styles.guestCell}><span className={styles.guestAvatar}>{arrival.initials}</span><span><strong>{arrival.name}</strong><small>{arrival.booking}</small></span></div></td>
+                          <td><strong className={styles.roomNumber}>{arrival.room}</strong></td>
+                          <td>{arrival.nights} nights</td>
+                          <td><span className={arrival.rawStatus === "checked_in" ? styles.checkedIn : styles.expected}><i />{arrival.status}</span></td>
+                          <td className={styles.actionsCell}><ReservationRowActions reservationId={arrival.id} status={arrival.rawStatus} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {visibleArrivals.length === 0 && <p className={styles.emptyState}>No arrivals match “{query}”.</p>}
+                </>
+              )}
             </div>
-            <footer className={styles.tableFooter}><span>Showing {visibleArrivals.length} of 14 arrivals</span><Link href="/crm">Open guest profiles <Icon name="arrow-right" size={14} /></Link></footer>
+            <footer className={styles.tableFooter}><span>Showing {visibleArrivals.length} of {data.arrivals.length} arrivals</span><Link href="/management/reservations">Open reservations <Icon name="arrow-right" size={14} /></Link></footer>
           </article>
 
           <article className={styles.panel}>
             <div className={styles.panelHeading}>
-              <div><h2>Room board</h2><p>Quick view of today’s room readiness</p></div>
+              <div><h2>Room board</h2><p>Today&apos;s room readiness</p></div>
               <span className={styles.filterButton}><Icon name="filter" size={15} /> All rooms</span>
             </div>
             <div className={styles.roomGrid}>
-              {frontDeskRooms.map((room) => (
-                <div className={styles.roomCard} key={room.number}>
-                  <div className={styles.roomCardTop}><span className={styles.roomIcon}><Icon name="bed" size={17} /></span><span className={`${styles.roomState} ${roomStateClasses[room.state]}`}>{room.state}</span></div>
-                  <strong>{room.number}</strong><small>{room.type}</small>
-                </div>
-              ))}
+              {data.rooms.length === 0 ? (
+                <p className={styles.emptyState}>No rooms configured yet.</p>
+              ) : (
+                data.rooms.map((room) => (
+                  <div className={styles.roomCard} key={room.id}>
+                    <div className={styles.roomCardTop}><span className={styles.roomIcon}><Icon name="bed" size={17} /></span><span className={`${styles.roomState} ${roomStateClasses[room.state] ?? ""}`}>{room.state}</span></div>
+                    <strong>{room.number}</strong><small>{room.type}</small>
+                    <RoomStatusControl roomId={room.id} current={room.rawStatus} />
+                  </div>
+                ))
+              )}
             </div>
             <div className={styles.roomLegend}><span><i className={styles.legendReady} />Ready</span><span><i className={styles.legendReserved} />Reserved</span><span><i className={styles.legendCleaning} />Cleaning</span></div>
           </article>
         </section>
 
-        <footer className={styles.footer}><span>Front desk workspace</span><span>Sample operational data · Hotel local time EAT</span><span className={styles.systemStatus}><i /> All systems operational</span></footer>
+        <section className={styles.workGrid} style={{ marginTop: 0 }}>
+          <article className={styles.panel} style={{ gridColumn: "1 / -1" }}>
+            <div className={styles.panelHeading}>
+              <div><h2>Departure queue <span>{data.departures.length}</span></h2><p>Today&apos;s expected check-outs</p></div>
+            </div>
+            <div className={styles.tableScroller}>
+              {data.departures.length === 0 ? (
+                <p className={styles.emptyState}>No departures scheduled for today.</p>
+              ) : (
+                <table className={styles.arrivalTable}>
+                  <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <tbody>
+                    {data.departures.map((dep) => (
+                      <tr key={dep.id}>
+                        <td><div className={styles.guestCell}><span className={styles.guestAvatar}>{dep.initials}</span><span><strong>{dep.name}</strong><small>{dep.booking}</small></span></div></td>
+                        <td><strong className={styles.roomNumber}>{dep.room}</strong></td>
+                        <td>{dep.nights} nights</td>
+                        <td><span className={dep.rawStatus === "checked_out" ? styles.checkedIn : styles.expected}><i />{dep.status}</span></td>
+                        <td className={styles.actionsCell}><ReservationRowActions reservationId={dep.id} status={dep.rawStatus} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <footer className={styles.tableFooter}><span>{s.departuresCheckedOut} checked out · {Math.max(0, s.departuresTotal - s.departuresCheckedOut)} remaining</span></footer>
+          </article>
+        </section>
+
+        <section className={styles.workGrid} id="new-reservation" style={{ marginTop: 0 }}>
+          <article className={styles.panel} style={{ gridColumn: "1 / -1" }}>
+            <div className={styles.panelHeading}>
+              <div><h2>New reservation</h2><p>Create a booking for walk-ins, calls, or direct requests</p></div>
+            </div>
+            {data.rooms.length === 0 ? (
+              <p className={styles.emptyState} style={{ textAlign: "left" }}>Add rooms in the management workspace before creating reservations.</p>
+            ) : (
+              <div style={{ maxWidth: 720 }}>
+                <ReservationForm rooms={data.rooms.map((r) => ({ id: r.id, number: r.number, type: r.type }))} />
+              </div>
+            )}
+          </article>
+        </section>
+
+        <footer className={styles.footer}><span>Front desk workspace</span><span>Live operational data · Hotel local time EAT</span><span className={styles.systemStatus}><i /> All systems operational</span></footer>
       </div>
     </main>
   );

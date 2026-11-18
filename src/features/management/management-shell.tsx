@@ -6,6 +6,8 @@ import { UserButton } from "@clerk/nextjs";
 import { HotelLogo } from "@/components/brand/hotel-logo";
 import { Icon } from "@/components/ui/icon";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { DashboardSwitcher } from "@/components/ui/dashboard-switcher";
+import type { DashboardRole } from "@/lib/auth/roles";
 import { managementNavigation as navigation } from "./management-data";
 
 type ManagementShellProps = {
@@ -14,9 +16,10 @@ type ManagementShellProps = {
   children: ReactNode;
   dateLabel?: string;
   timeLabel?: string;
+  viewerRole?: DashboardRole;
 };
 
-export function ManagementShell({ activeNav, topbarActions, children, dateLabel, timeLabel }: ManagementShellProps) {
+export function ManagementShell({ activeNav, topbarActions, children, dateLabel, timeLabel, viewerRole = "management" }: ManagementShellProps) {
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -86,6 +89,7 @@ export function ManagementShell({ activeNav, topbarActions, children, dateLabel,
             <strong>{activeNav}</strong>
           </div>
           <div className="topbar-actions">
+            {viewerRole === "management" && <DashboardSwitcher viewerRole={viewerRole} current="management" />}
             {topbarActions}
             <ThemeToggle />
             <span className="icon-button notification-button" aria-label="Notifications">
