@@ -11,6 +11,7 @@ import type { DashboardRole } from "@/lib/auth/roles";
 import { ReservationRowActions } from "@/features/management/reservations/reservation-row-actions";
 import { ReservationForm } from "@/features/management/reservations/reservation-form";
 import { RoomStatusControl } from "./room-status-control";
+import { HotelTimeCounter } from "./hotel-time-counter";
 import type { FrontDeskData } from "./front-desk-data-server";
 import styles from "./front-desk-dashboard.module.css";
 
@@ -48,7 +49,7 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
         <div className={styles.headerRight}>
           {viewerRole === "management" && <DashboardSwitcher viewerRole={viewerRole} current="front_desk" />}
           <ThemeToggle />
-          <span className={styles.localTime}><Icon name="clock" size={15} /> {data.timeLabel.split(" ").slice(0, 2).join(" ")} <small>EAT</small></span>
+          <span className={styles.localTime}><Icon name="clock" size={15} /> <HotelTimeCounter /></span>
           <UserButton />
         </div>
       </header>
