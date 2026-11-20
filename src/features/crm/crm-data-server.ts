@@ -9,12 +9,18 @@ export type CrmGuestProfile = {
   initials: string;
   name: string;
   email: string;
+  phone: string;
   country: string;
   visits: number;
   lastStay: string;
   lifetimeValue: string;
   segment: GuestSegment;
   notes: string | null;
+  // raw/editable
+  emailRaw: string;
+  phoneRaw: string;
+  countryRaw: string;
+  notesRaw: string;
 };
 
 export type CrmData = {
@@ -74,6 +80,7 @@ export async function getCrmData(): Promise<CrmData> {
       id: guests.id,
       name: guests.name,
       email: guests.email,
+      phone: guests.phone,
       country: guests.country,
       segment: guests.segment,
       notes: guests.notes,
@@ -85,7 +92,7 @@ export async function getCrmData(): Promise<CrmData> {
     .from(guests)
     .leftJoin(reservations, eq(reservations.guestId, guests.id))
     .leftJoin(payments, eq(payments.reservationId, reservations.id))
-    .groupBy(guests.id, guests.name, guests.email, guests.country, guests.segment, guests.notes, guests.updatedAt)
+    .groupBy(guests.id, guests.name, guests.email, guests.phone, guests.country, guests.segment, guests.notes, guests.updatedAt)
     .orderBy(desc(sql`max(${reservations.checkOut})`), desc(guests.updatedAt), desc(guests.createdAt));
 
   let totalLifetime = 0;
@@ -111,12 +118,17 @@ export async function getCrmData(): Promise<CrmData> {
       initials: initialsFromName(r.name),
       name: r.name,
       email: r.email ?? "—",
+      phone: r.phone ?? "—",
       country: r.country ?? "—",
       visits,
       lastStay: formatDateLabel(r.lastStay),
       lifetimeValue: formatMoney(lifetime),
       segment: seg,
       notes: r.notes ?? null,
+      emailRaw: r.email ?? "",
+      phoneRaw: r.phone ?? "",
+      countryRaw: r.country ?? "",
+      notesRaw: r.notes ?? "",
     };
   });
 

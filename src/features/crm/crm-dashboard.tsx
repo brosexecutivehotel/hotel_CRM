@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
@@ -8,34 +7,12 @@ import { HotelLogo } from "@/components/brand/hotel-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DashboardSwitcher } from "@/components/ui/dashboard-switcher";
 import type { DashboardRole } from "@/lib/auth/roles";
-import type { CrmData, GuestSegment } from "./crm-data-server";
+import type { CrmData } from "./crm-data-server";
 import { displaySegment } from "./crm-data-server";
+import { GuestDirectory } from "./guest-directory";
 import styles from "./crm-dashboard.module.css";
 
-const segments: ("All guests" | GuestSegment)[] = ["All guests", "vip", "returning", "corporate", "new"];
-const segmentLabels: Record<(typeof segments)[number], string> = {
-  "All guests": "All guests",
-  vip: "VIP",
-  returning: "Returning",
-  corporate: "Corporate",
-  new: "New",
-};
-
 export default function CrmDashboard({ viewerRole, data }: { viewerRole?: DashboardRole; data: CrmData }) {
-  const [query, setQuery] = useState("");
-  const [selectedSegment, setSelectedSegment] = useState<(typeof segments)[number]>("All guests");
-
-  const visibleGuests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return data.directory.filter((guest) => {
-      const matchesSegment = selectedSegment === "All guests" || guest.segment === selectedSegment;
-      const matchesQuery =
-        !normalizedQuery ||
-        `${guest.name} ${guest.email} ${guest.country} ${displaySegment(guest.segment)}`.toLowerCase().includes(normalizedQuery);
-      return matchesSegment && matchesQuery;
-    });
-  }, [query, selectedSegment, data.directory]);
-
   const m = data.metrics;
 
   return (
@@ -114,50 +91,7 @@ export default function CrmDashboard({ viewerRole, data }: { viewerRole?: Dashbo
             </article>
           </section>
 
-          <section className={styles.directoryPanel} id="guest-directory">
-            <div className={styles.directoryHeading}>
-              <div><span className={styles.sectionEyebrow}>RELATIONSHIPS, NOT JUST RESERVATIONS</span><h2>Guest directory</h2><p>Live guest profiles derived from reservations and payments.</p></div>
-              <label className={styles.search}>
-                <Icon name="search" size={16} />
-                <input aria-label="Search guest directory" onChange={(event) => setQuery(event.target.value)} placeholder="Search guests" value={query} />
-              </label>
-            </div>
-            <div className={styles.segmentFilters} aria-label="Filter guests by segment">
-              {segments.map((segment) => (
-                <button
-                  aria-pressed={selectedSegment === segment}
-                  className={selectedSegment === segment ? styles.filterActive : styles.filterButton}
-                  key={segment}
-                  onClick={() => setSelectedSegment(segment)}
-                  type="button"
-                >
-                  {segmentLabels[segment]}
-                </button>
-              ))}
-            </div>
-            <div className={styles.tableScroller}>
-              {data.directory.length === 0 ? (
-                <p className={styles.emptyState}>No guest profiles yet. Guest records are created when reservations are added.</p>
-              ) : (
-                <table className={styles.guestTable}>
-                  <thead><tr><th>GUEST</th><th>LOCATION</th><th>STAYS</th><th>LAST VISIT</th><th>LIFETIME VALUE</th><th>SEGMENT</th></tr></thead>
-                  <tbody>
-                    {visibleGuests.map((guest) => (
-                      <tr key={guest.id}>
-                        <td><div className={styles.guestCell}><span className={styles.guestAvatar}>{guest.initials}</span><span><strong>{guest.name}</strong><small>{guest.email}</small></span></div></td>
-                        <td>{guest.country}</td>
-                        <td>{guest.visits}</td>
-                        <td>{guest.lastStay}</td>
-                        <td><strong className={styles.value}>{guest.lifetimeValue}</strong></td>
-                        <td><span className={`${styles.segmentBadge} ${styles[`badge${displaySegment(guest.segment)}`]}`}>{displaySegment(guest.segment)}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              {data.directory.length > 0 && visibleGuests.length === 0 && <p className={styles.emptyState}>No guest profiles match these filters.</p>}
-            </div>
-          </section>
+          <GuestDirectory directory={data.directory} />
           <footer className={styles.footer}><span>Guest CRM</span><span>Live guest records · Access controlled by assigned role.</span></footer>
         </div>
       </section>
