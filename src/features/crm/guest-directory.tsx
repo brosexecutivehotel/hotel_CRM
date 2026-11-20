@@ -16,6 +16,13 @@ const segmentLabels: Record<(typeof segments)[number], string> = {
   new: "New",
 };
 
+function statusLabel(status: "reserved" | "checked_in" | "checked_out" | "cancelled"): string {
+  if (status === "checked_in") return "Checked in";
+  if (status === "checked_out") return "Checked out";
+  if (status === "cancelled") return "Cancelled";
+  return "Reserved";
+}
+
 export function GuestDirectory({ directory }: { directory: CrmGuestProfile[] }) {
   const [query, setQuery] = useState("");
   const [selectedSegment, setSelectedSegment] = useState<(typeof segments)[number]>("All guests");
@@ -131,7 +138,37 @@ export function GuestDirectory({ directory }: { directory: CrmGuestProfile[] }) 
               </div>
 
               <div className={styles.profileDivider} />
-              <h3 className={styles.profileSectionTitle}>Profile details</h3>
+              <h3 className={styles.profileSectionTitle}>Contact & details</h3>
+              <div className={styles.profileContact}>
+                <div><span>Email</span><strong>{selected.email}</strong></div>
+                <div><span>Phone</span><strong>{selected.phone}</strong></div>
+                <div><span>Country</span><strong>{selected.country}</strong></div>
+              </div>
+
+              <div className={styles.profileDivider} />
+              <h3 className={styles.profileSectionTitle}>Stay history</h3>
+              {selected.reservations.length === 0 ? (
+                <p className={styles.emptyState} style={{ textAlign: "left", padding: "8px 0" }}>No reservation history yet.</p>
+              ) : (
+                <div className={styles.historyList}>
+                  {selected.reservations.map((r) => (
+                    <div key={r.id} className={styles.historyItem}>
+                      <div className={styles.historyTop}>
+                        <strong>{r.reference}</strong>
+                        <span className={`${styles.historyStatus} ${styles[`status_${r.status}`] ?? ""}`}>{statusLabel(r.status)}</span>
+                      </div>
+                      <div className={styles.historyMeta}>
+                        <span>Room {r.roomNumber} · {r.roomType}</span>
+                        <span>{r.checkIn} → {r.checkOut} · {r.nights} night{r.nights === 1 ? "" : "s"}</span>
+                        <span>{r.source}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.profileDivider} />
+              <h3 className={styles.profileSectionTitle}>Edit profile & notes</h3>
               <GuestProfileForm guest={selected} />
             </div>
           )}

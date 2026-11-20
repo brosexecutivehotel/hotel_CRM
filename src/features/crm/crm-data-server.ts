@@ -1,8 +1,20 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { guests, payments, reservations } from "@/db/schema";
+import { guests, payments, reservations, rooms } from "@/db/schema";
 
 export type GuestSegment = "vip" | "returning" | "corporate" | "new";
+
+export type CrmGuestReservation = {
+  id: string;
+  reference: string;
+  roomNumber: string;
+  roomType: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  status: "reserved" | "checked_in" | "checked_out" | "cancelled";
+  source: string;
+};
 
 export type CrmGuestProfile = {
   id: string;
@@ -21,6 +33,7 @@ export type CrmGuestProfile = {
   phoneRaw: string;
   countryRaw: string;
   notesRaw: string;
+  reservations: CrmGuestReservation[];
 };
 
 export type CrmData = {
@@ -72,6 +85,14 @@ function formatDateLabel(value: string | Date | null): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(d);
 }
 
+function formatSource(source: string): string {
+  if (source === "booking_com") return "Booking.com";
+  if (source === "walk_in") return "Walk-in";
+  if (source === "corporate") return "Corporate";
+  if (source === "phone") return "Phone";
+  return "Direct";
+}
+
 export async function getCrmData(): Promise<CrmData> {
   const db = getDb();
 
@@ -94,6 +115,45 @@ export async function getCrmData(): Promise<CrmData> {
     .leftJoin(payments, eq(payments.reservationId, reservations.id))
     .groupBy(guests.id, guests.name, guests.email, guests.phone, guests.country, guests.segment, guests.notes, guests.updatedAt)
     .orderBy(desc(sql`max(${reservations.checkOut})`), desc(guests.updatedAt), desc(guests.createdAt));
+
+  const guestIds = rows.map((r) => r.id);
+  const reservationRows =
+    guestIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: reservations.id,
+            guestId: reservations.guestId,
+            reference: reservations.reference,
+            roomNumber: rooms.number,
+            roomType: rooms.type,
+            checkIn: reservations.checkIn,
+            checkOut: reservations.checkOut,
+            nights: reservations.nights,
+            status: reservations.status,
+            source: reservations.source,
+          })
+          .from(reservations)
+          .innerJoin(rooms, eq(reservations.roomId, rooms.id))
+          .where(inArray(reservations.guestId, guestIds))
+          .orderBy(desc(reservations.checkIn), desc(reservations.createdAt));
+
+  const reservationsByGuest = new Map<string, CrmGuestReservation[]>();
+  for (const r of reservationRows) {
+    const list = reservationsByGuest.get(r.guestId) ?? [];
+    list.push({
+      id: r.id,
+      reference: r.reference,
+      roomNumber: r.roomNumber,
+      roomType: r.roomType,
+      checkIn: formatDateLabel(r.checkIn),
+      checkOut: formatDateLabel(r.checkOut),
+      nights: r.nights,
+      status: r.status as CrmGuestReservation["status"],
+      source: formatSource(r.source),
+    });
+    reservationsByGuest.set(r.guestId, list);
+  }
 
   let totalLifetime = 0;
   let repeatGuests = 0;
@@ -129,6 +189,7 @@ export async function getCrmData(): Promise<CrmData> {
       phoneRaw: r.phone ?? "",
       countryRaw: r.country ?? "",
       notesRaw: r.notes ?? "",
+      reservations: reservationsByGuest.get(r.id) ?? [],
     };
   });
 
