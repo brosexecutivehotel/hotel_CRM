@@ -1,12 +1,15 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { DashboardRole } from "@/lib/auth/roles";
+import RubberSegment from "@/components/ui/rubber-segment";
 
 type DashboardKey = "management" | "front_desk" | "crm";
 
-const items: { key: DashboardKey; label: string; href: string }[] = [
-  { key: "management", label: "Management", href: "/management" },
-  { key: "front_desk", label: "Front desk", href: "/front-desk" },
-  { key: "crm", label: "CRM", href: "/crm" },
+const items: { value: DashboardKey; label: string; href: string }[] = [
+  { value: "management", label: "Management", href: "/management" },
+  { value: "front_desk", label: "Front desk", href: "/front-desk" },
+  { value: "crm", label: "CRM", href: "/crm" },
 ];
 
 export function DashboardSwitcher({
@@ -18,24 +21,26 @@ export function DashboardSwitcher({
   current: DashboardKey;
   className?: string;
 }) {
+  const router = useRouter();
   if (viewerRole !== "management") return null;
 
   return (
-    <nav className={className} aria-label="Switch dashboard" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-      {items.map((item) => {
-        const active = item.key === current;
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={active ? "row-action row-action--primary" : "row-action"}
-            aria-current={active ? "page" : undefined}
-            style={{ textDecoration: "none" }}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
+    <RubberSegment
+      aria-label="Switch dashboard"
+      className={className}
+      items={items.map((item) => ({ value: item.value, label: item.label }))}
+      value={current}
+      onChange={(value) => {
+        const target = items.find((item) => item.value === value);
+        if (target) router.push(target.href);
+      }}
+      trackColor="var(--surface-muted)"
+      thumbColor="var(--brand-gold)"
+      textColor="var(--muted)"
+      activeTextColor="#111111"
+      size="sm"
+      radius={8}
+      inset={2}
+    />
   );
 }
