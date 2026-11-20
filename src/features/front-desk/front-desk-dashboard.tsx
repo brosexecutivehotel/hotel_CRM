@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Icon } from "@/components/ui/icon";
@@ -25,6 +25,21 @@ const roomStateClasses: Record<string, string | undefined> = {
 
 export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDeskData; viewerRole: DashboardRole }) {
   const [query, setQuery] = useState("");
+  const [isReservationOpen, setIsReservationOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isReservationOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsReservationOpen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isReservationOpen]);
 
   const visibleArrivals = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -63,9 +78,9 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
           </div>
           <div className={styles.headingActions}>
             <span className={styles.secondaryButton}><Icon name="calendar" size={16} /> Today</span>
-            <a href="#new-reservation" className={styles.primaryButton} style={{ textDecoration: "none" }}>
+            <button type="button" className={styles.primaryButton} onClick={() => setIsReservationOpen(true)}>
               <Icon name="plus" size={16} /> New reservation
-            </a>
+            </button>
           </div>
         </section>
 
@@ -174,20 +189,48 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
           </article>
         </section>
 
-        <section className={styles.workGrid} id="new-reservation" style={{ marginTop: 0 }}>
-          <article className={styles.panel} style={{ gridColumn: "1 / -1" }}>
-            <div className={styles.panelHeading}>
-              <div><h2>New reservation</h2><p>Create a booking for walk-ins, calls, or direct requests</p></div>
-            </div>
-            {data.rooms.length === 0 ? (
-              <p className={styles.emptyState} style={{ textAlign: "left" }}>Add rooms in the management workspace before creating reservations.</p>
-            ) : (
-              <div style={{ maxWidth: 720 }}>
-                <ReservationForm rooms={data.rooms.map((r) => ({ id: r.id, number: r.number, type: r.type }))} />
+        {isReservationOpen && (
+          <div
+            className={styles.modalOverlay}
+            role="presentation"
+            onClick={() => setIsReservationOpen(false)}
+          >
+            <div
+              className={styles.modalPanel}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-reservation-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div>
+                  <h2 id="new-reservation-title">New reservation</h2>
+                  <p>Create a booking for walk-ins, calls, or direct requests</p>
+                </div>
+                <button
+                  type="button"
+                  className={styles.modalClose}
+                  onClick={() => setIsReservationOpen(false)}
+                  aria-label="Close reservation form"
+                >
+                  <Icon name="close" size={16} />
+                </button>
               </div>
-            )}
-          </article>
-        </section>
+              <div className={styles.modalBody}>
+                {data.rooms.length === 0 ? (
+                  <p className={styles.emptyState} style={{ textAlign: "left", padding: 0 }}>
+                    Add rooms in the management workspace before creating reservations.
+                  </p>
+                ) : (
+                  <ReservationForm
+                    rooms={data.rooms.map((r) => ({ id: r.id, number: r.number, type: r.type }))}
+                    onSuccess={() => setIsReservationOpen(false)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <footer className={styles.footer}><span>Front desk workspace</span><span>Live operational data · Hotel local time EAT</span><span className={styles.systemStatus}><i /> All systems operational</span></footer>
       </div>

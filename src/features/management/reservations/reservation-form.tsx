@@ -34,13 +34,22 @@ function FieldError({ messages }: { messages?: string[] }) {
   return <p className="field-error" role="alert">{messages.join(" ")}</p>;
 }
 
-export function ReservationForm({ rooms }: { rooms: RoomOption[] }) {
+export function ReservationForm({
+  rooms,
+  onSuccess,
+}: {
+  rooms: RoomOption[];
+  onSuccess?: () => void;
+}) {
   const [state, action, pending] = useActionState(createReservation, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (state.ok) formRef.current?.reset();
-  }, [state.ok]);
+    if (state.ok) {
+      formRef.current?.reset();
+      onSuccess?.();
+    }
+  }, [state.ok, onSuccess]);
 
   return (
     <form ref={formRef} className="room-form" action={action} noValidate>
