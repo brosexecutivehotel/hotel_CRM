@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireDashboardRole } from "@/lib/auth/roles";
 import CrmDashboard from "@/features/crm/crm-dashboard";
+import { getCrmData } from "@/features/crm/crm-data-server";
 
 export const metadata: Metadata = {
   title: "Guest CRM",
@@ -9,5 +10,6 @@ export const metadata: Metadata = {
 
 export default async function CrmPage() {
   const viewerRole = await requireDashboardRole("crm");
-  return <CrmDashboard viewerRole={viewerRole} />;
+  const data = await getCrmData();
+  return <CrmDashboard viewerRole={viewerRole} data={data} />;
 }
