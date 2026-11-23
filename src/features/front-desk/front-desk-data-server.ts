@@ -1,6 +1,6 @@
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { guests, reservations, rooms } from "@/db/schema";
+import { guests, payments, reservations, rooms } from "@/db/schema";
 
 const HOTEL_TIMEZONE = "Africa/Juba";
 
@@ -55,6 +55,10 @@ function labelSource(source: string): string {
   return "Direct booking";
 }
 
+function formatPaymentAmount(amount: number, currency: string): string {
+  return `${currency} ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export type FrontDeskStay = {
   id: string;
   initials: string;
@@ -65,6 +69,8 @@ export type FrontDeskStay = {
   nights: number;
   status: "Arriving" | "Checked in" | "Checked out" | "Cancelled";
   rawStatus: "reserved" | "checked_in" | "checked_out" | "cancelled";
+  paymentLabel: string;
+  paymentTone: "none" | "pending" | "paid" | "partial" | "refunded";
 };
 
 export type FrontDeskRoom = {
@@ -140,17 +146,67 @@ export async function getFrontDeskData(now = new Date()): Promise<FrontDeskData>
     db.select({ status: rooms.status, count: count() }).from(rooms).groupBy(rooms.status),
   ]);
 
-  const toStay = (r: typeof arrivalRows[number]): FrontDeskStay => ({
-    id: r.id,
-    initials: initialsFromName(r.guestName),
-    name: r.guestName,
-    booking: `${r.reference} · ${labelSource(r.source)}`,
-    room: r.roomNumber,
-    time: "—",
-    nights: r.nights,
-    status: labelStatus(r.status),
-    rawStatus: r.status as FrontDeskStay["rawStatus"],
-  });
+  const stayReservationIds = Array.from(new Set([...arrivalRows, ...departureRows].map((r) => r.id)));
+  const paymentRows =
+    stayReservationIds.length === 0
+      ? []
+      : await db
+          .select({
+            reservationId: payments.reservationId,
+            amount: payments.amount,
+            currency: payments.currency,
+            status: payments.status,
+          })
+          .from(payments)
+          .where(inArray(payments.reservationId, stayReservationIds));
+
+  const paymentSummaryByReservation = new Map<
+    string,
+    { paid: number; pending: number; refunded: number; currency: string }
+  >();
+  for (const p of paymentRows) {
+    const entry = paymentSummaryByReservation.get(p.reservationId) ?? {
+      paid: 0,
+      pending: 0,
+      refunded: 0,
+      currency: p.currency || "USD",
+    };
+    const amount = Number(p.amount ?? 0);
+    if (p.status === "paid") entry.paid += amount;
+    else if (p.status === "pending") entry.pending += amount;
+    else if (p.status === "refunded") entry.refunded += amount;
+    paymentSummaryByReservation.set(p.reservationId, entry);
+  }
+
+  const toStay = (r: typeof arrivalRows[number]): FrontDeskStay => {
+    const summary = paymentSummaryByReservation.get(r.id);
+    let paymentTone: FrontDeskStay["paymentTone"] = "none";
+    let paymentLabel = "No payment";
+    if (summary) {
+      const parts: string[] = [];
+      if (summary.paid > 0) parts.push(`${formatPaymentAmount(summary.paid, summary.currency)} paid`);
+      if (summary.pending > 0) parts.push("pending");
+      if (summary.refunded > 0) parts.push("refunded");
+      if (parts.length > 0) paymentLabel = parts.join(" · ");
+      if (summary.pending > 0 && summary.paid > 0) paymentTone = "partial";
+      else if (summary.pending > 0) paymentTone = "pending";
+      else if (summary.paid > 0) paymentTone = "paid";
+      else if (summary.refunded > 0) paymentTone = "refunded";
+    }
+    return {
+      id: r.id,
+      initials: initialsFromName(r.guestName),
+      name: r.guestName,
+      booking: `${r.reference} · ${labelSource(r.source)}`,
+      room: r.roomNumber,
+      time: "—",
+      nights: r.nights,
+      status: labelStatus(r.status),
+      rawStatus: r.status as FrontDeskStay["rawStatus"],
+      paymentLabel,
+      paymentTone,
+    };
+  };
 
   const arrivals = arrivalRows.map(toStay);
   const departures = departureRows.map(toStay);

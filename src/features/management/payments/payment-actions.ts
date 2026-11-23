@@ -53,6 +53,7 @@ function revalidatePaymentViews() {
   revalidatePath("/management/payments");
   revalidatePath("/management");
   revalidatePath("/management/reservations");
+  revalidatePath("/front-desk");
 }
 
 function formatMoney(amount: number, currency: string): string {
@@ -60,7 +61,7 @@ function formatMoney(amount: number, currency: string): string {
 }
 
 export async function createPayment(_prev: PaymentFormState, formData: FormData): Promise<PaymentFormState> {
-  await requireDashboardRole("management");
+  await requireDashboardRole(["management", "front_desk"]);
 
   const parsed = createSchema.safeParse({
     reservationId: formData.get("reservationId") ?? "",
@@ -118,7 +119,7 @@ const statusSchema = z.object({
 });
 
 export async function updatePaymentStatus(_prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
-  await requireDashboardRole("management");
+  await requireDashboardRole(["management", "front_desk"]);
   const parsed = statusSchema.safeParse({ id: formData.get("id"), status: formData.get("status") });
   if (!parsed.success) return { ok: false, message: "Invalid payment update." };
 

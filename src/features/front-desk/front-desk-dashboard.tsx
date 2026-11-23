@@ -10,6 +10,7 @@ import { DashboardSwitcher } from "@/components/ui/dashboard-switcher";
 import type { DashboardRole } from "@/lib/auth/roles";
 import { ReservationRowActions } from "@/features/management/reservations/reservation-row-actions";
 import { ReservationForm } from "@/features/management/reservations/reservation-form";
+import { PaymentForm } from "@/features/management/payments/payment-form";
 import { RoomStatusControl } from "./room-status-control";
 import { HotelTimeCounter } from "./hotel-time-counter";
 import type { FrontDeskData } from "./front-desk-data-server";
@@ -26,11 +27,16 @@ const roomStateClasses: Record<string, string | undefined> = {
 export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDeskData; viewerRole: DashboardRole }) {
   const [query, setQuery] = useState("");
   const [isReservationOpen, setIsReservationOpen] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState<{ id: string; label: string } | null>(null);
 
   useEffect(() => {
-    if (!isReservationOpen) return;
+    const modalOpen = isReservationOpen || !!paymentTarget;
+    if (!modalOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsReservationOpen(false);
+      if (event.key === "Escape") {
+        setIsReservationOpen(false);
+        setPaymentTarget(null);
+      }
     };
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -39,7 +45,7 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [isReservationOpen]);
+  }, [isReservationOpen, paymentTarget]);
 
   const visibleArrivals = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -118,7 +124,7 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
               ) : (
                 <>
                   <table className={styles.arrivalTable}>
-                    <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                    <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>PAYMENT</th><th>ACTIONS</th></tr></thead>
                     <tbody>
                       {visibleArrivals.map((arrival) => (
                         <tr key={arrival.id}>
@@ -126,7 +132,19 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
                           <td><strong className={styles.roomNumber}>{arrival.room}</strong></td>
                           <td>{arrival.nights} nights</td>
                           <td><span className={arrival.rawStatus === "checked_in" ? styles.checkedIn : styles.expected}><i />{arrival.status}</span></td>
-                          <td className={styles.actionsCell}><ReservationRowActions reservationId={arrival.id} status={arrival.rawStatus} /></td>
+                          <td><span className={`${styles.paymentBadge} ${styles[`payment_${arrival.paymentTone}`] ?? ""}`}>{arrival.paymentLabel}</span></td>
+                          <td className={styles.actionsCell}>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                              <ReservationRowActions reservationId={arrival.id} status={arrival.rawStatus} />
+                              <button
+                                type="button"
+                                className="row-action"
+                                onClick={() => setPaymentTarget({ id: arrival.id, label: `${arrival.booking} · ${arrival.name}` })}
+                              >
+                                Record payment
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -170,7 +188,7 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
                 <p className={styles.emptyState}>No departures scheduled for today.</p>
               ) : (
                 <table className={styles.arrivalTable}>
-                  <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <thead><tr><th>GUEST / BOOKING</th><th>ROOM</th><th>STAY</th><th>STATUS</th><th>PAYMENT</th><th>ACTIONS</th></tr></thead>
                   <tbody>
                     {data.departures.map((dep) => (
                       <tr key={dep.id}>
@@ -178,7 +196,19 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
                         <td><strong className={styles.roomNumber}>{dep.room}</strong></td>
                         <td>{dep.nights} nights</td>
                         <td><span className={dep.rawStatus === "checked_out" ? styles.checkedIn : styles.expected}><i />{dep.status}</span></td>
-                        <td className={styles.actionsCell}><ReservationRowActions reservationId={dep.id} status={dep.rawStatus} /></td>
+                        <td><span className={`${styles.paymentBadge} ${styles[`payment_${dep.paymentTone}`] ?? ""}`}>{dep.paymentLabel}</span></td>
+                        <td className={styles.actionsCell}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                            <ReservationRowActions reservationId={dep.id} status={dep.rawStatus} />
+                            <button
+                              type="button"
+                              className="row-action"
+                              onClick={() => setPaymentTarget({ id: dep.id, label: `${dep.booking} · ${dep.name}` })}
+                            >
+                              Record payment
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -227,6 +257,48 @@ export default function FrontDeskDashboard({ data, viewerRole }: { data: FrontDe
                     onSuccess={() => setIsReservationOpen(false)}
                   />
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {paymentTarget && (
+          <div
+            className={styles.modalOverlay}
+            role="presentation"
+            onClick={() => setPaymentTarget(null)}
+          >
+            <div
+              className={styles.modalPanel}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="record-payment-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div>
+                  <h2 id="record-payment-title">Record payment</h2>
+                  <p>{paymentTarget.label}</p>
+                </div>
+                <button
+                  type="button"
+                  className={styles.modalClose}
+                  onClick={() => setPaymentTarget(null)}
+                  aria-label="Close payment form"
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <PaymentForm
+                  reservations={Array.from(
+                    new Map(
+                      [...data.arrivals, ...data.departures].map((s) => [s.id, { id: s.id, label: `${s.booking} · ${s.name}` }]),
+                    ).values(),
+                  )}
+                  defaultReservationId={paymentTarget.id}
+                  onSuccess={() => setPaymentTarget(null)}
+                />
               </div>
             </div>
           </div>

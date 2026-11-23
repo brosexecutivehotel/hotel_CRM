@@ -55,6 +55,11 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "refunded",
 ]);
 
+export const expenseStatusEnum = pgEnum("expense_status", [
+  "pending",
+  "paid",
+]);
+
 export const housekeepingStatusEnum = pgEnum("housekeeping_status", [
   "pending",
   "in_progress",
@@ -261,6 +266,23 @@ export const maintenanceLogs = pgTable("maintenance_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const expenses = pgTable("expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  expenseDate: date("expense_date").notNull(),
+  category: varchar("category", { length: 80 }).notNull(),
+  description: text("description").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  method: paymentMethodEnum("method").notNull().default("cash"),
+  status: expenseStatusEnum("status").notNull().default("paid"),
+  vendor: varchar("vendor", { length: 120 }),
+  reference: varchar("reference", { length: 80 }),
+  notes: text("notes"),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // --- Row types for consumers ----------------------------------------------
 
 export type Room = typeof rooms.$inferSelect;
@@ -277,3 +299,4 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type InventoryMovement = typeof inventoryMovements.$inferSelect;
 export type MaintenanceWorkOrder = typeof maintenanceWorkOrders.$inferSelect;
 export type MaintenanceLog = typeof maintenanceLogs.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;
